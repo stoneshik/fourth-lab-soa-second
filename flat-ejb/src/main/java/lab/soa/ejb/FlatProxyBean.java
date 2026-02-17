@@ -15,15 +15,14 @@ public class FlatProxyBean implements FlatProxyRemote {
     @Override
     public ProxyResponseDto proxyFindWithBalcony(
         String priceType,
-        String balconyType,
-        Map<String, String[]> headers
+        String balconyType
     ) {
         String path = String.format(
             "/api/v1/flats/agency/find-with-balcony/%s/%s",
             priceType,
             balconyType
         );
-        return requestManager.executeGet(path, headers, null);
+        return requestManager.executeGet(path, null);
     }
 
     @Override
@@ -31,8 +30,7 @@ public class FlatProxyBean implements FlatProxyRemote {
         String transportType,
         String sortType,
         Integer page,
-        Integer size,
-        Map<String, String[]> headers
+        Integer size
     ) {
         String path = String.format(
             "/api/v1/flats/agency/get-ordered-by-time-to-metro/%s/%s",
@@ -46,6 +44,6 @@ public class FlatProxyBean implements FlatProxyRemote {
         if (size != null) {
             queryParams.put("size", new String[]{size.toString()});
         }
-        return requestManager.executeGet(path, headers, queryParams);
+        return requestManager.executeGet(path, queryParams);
     }
 }

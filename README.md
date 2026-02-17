@@ -30,6 +30,9 @@ keytool -genkeypair -alias wildfly -keyalg RSA -keysize 4096 \
   -dname "CN=localhost, OU=Development, O=Company, L=City, ST=State, C=RU"
 ```
 
+Просмотр сгенерированного wsdl: http://localhost:33612/FlatProxyService/FlatProxySoapBean?wsdl
+
+
 ### Ссылки на репозитории лабораторной
 
 1. Ссылка на основной вызываемый сервис реализованный на Spring Boot - https://github.com/stoneshik/fourth-lab-soa

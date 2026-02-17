@@ -35,7 +35,7 @@ public class RequestManager {
         try {
             targetBaseUrl = System.getenv().getOrDefault(
                 "TARGET_SERVICE_BASE_URL",
-                "https://localhost:33510"
+                "https://localhost:33610"
             );
             TrustManager[] trustAllCerts = new TrustManager[]{
                 new X509TrustManager() {
@@ -51,7 +51,6 @@ public class RequestManager {
                 .hostnameVerifier((h, s) -> true)
                 .build();
             log.info("RequestManager initialized, target={}", targetBaseUrl);
-
         } catch (Exception e) {
             throw new IllegalStateException("Failed to initialize RequestManager", e);
         }
@@ -66,7 +65,6 @@ public class RequestManager {
 
     public ProxyResponseDto executeGet(
         String path,
-        Map<String, String[]> headers,
         Map<String, String[]> queryParams
     ) {
         String url = buildUrl(path);
@@ -74,7 +72,6 @@ public class RequestManager {
         WebTarget target = client.target(url);
         target = addQueryParams(target, queryParams);
         Invocation.Builder builder = target.request(MediaType.APPLICATION_XML);
-        copyHeaders(headers, builder);
         try (Response upstream = builder.get()) {
             return ProxyResponseDto.builder()
                 .status(upstream.getStatus())
@@ -87,11 +84,7 @@ public class RequestManager {
                 .build();
         } catch (Exception e) {
             log.error("Upstream request failed", e);
-            return ProxyResponseDto.builder()
-                .status(Response.Status.BAD_GATEWAY.getStatusCode())
-                .mediaType(MediaType.TEXT_PLAIN)
-                .body(e.getMessage())
-                .build();
+            throw e;
         }
     }
 
@@ -111,20 +104,11 @@ public class RequestManager {
     ) {
         if (queryParams != null) {
             for (Map.Entry<String,String[]> entry: queryParams.entrySet()) {
-                for (String v: entry.getValue()) {
-                    target = target.queryParam(entry.getKey(), v);
+                for (String value: entry.getValue()) {
+                    target = target.queryParam(entry.getKey(), value);
                 }
             }
         }
         return target;
-    }
-
-    private void copyHeaders(Map<String, String[]> from, Invocation.Builder to) {
-        if (from == null) return;
-        for (var e : from.entrySet()) {
-            for (String v : e.getValue()) {
-                to.header(e.getKey(), v);
-            }
-        }
     }
 }
