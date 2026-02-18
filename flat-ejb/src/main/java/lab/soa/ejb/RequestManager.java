@@ -1,12 +1,6 @@
 package lab.soa.ejb;
 
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
 import java.util.Map;
-
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,21 +29,9 @@ public class RequestManager {
         try {
             targetBaseUrl = System.getenv().getOrDefault(
                 "TARGET_SERVICE_BASE_URL",
-                "https://localhost:33610"
+                "http://localhost:33620"
             );
-            TrustManager[] trustAllCerts = new TrustManager[]{
-                new X509TrustManager() {
-                    public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
-                    public void checkClientTrusted(X509Certificate[] c, String a) {}
-                    public void checkServerTrusted(X509Certificate[] c, String a) {}
-                }
-            };
-            SSLContext sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(null, trustAllCerts, new SecureRandom());
-            client = ClientBuilder.newBuilder()
-                .sslContext(sslContext)
-                .hostnameVerifier((h, s) -> true)
-                .build();
+            client = ClientBuilder.newBuilder().build();
             log.info("RequestManager initialized, target={}", targetBaseUrl);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to initialize RequestManager", e);
