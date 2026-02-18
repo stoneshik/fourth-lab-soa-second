@@ -1,51 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <mule xmlns="http://www.mulesoft.org/schema/mule/core"
       xmlns:http="http://www.mulesoft.org/schema/mule/http"
       xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
       xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-
       xsi:schemaLocation="
         http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
         http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
         http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
-        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+        http://www.mulesoft.org/schema/mule/documentation http://www.mulesoft.org/schema/mule/documentation/current/mule-documentation.xsd">
 
 
-    <!-- ================================================= -->
-    <!-- GLOBAL CONFIG                                     -->
-    <!-- ================================================= -->
-
-    <http:listener-config name="HTTP_Listener_config">
-        <http:listener-connection host="0.0.0.0" port="8081"/>
+    <!-- HTTPS Listener -->
+    <http:listener-config name="HTTPS_Listener_config">
+        <http:listener-connection host="0.0.0.0" port="33610">
+            <http:tls-context>
+                <http:trust-store insecure="true"/>
+            </http:tls-context>
+        </http:listener-connection>
     </http:listener-config>
 
-
+    <!-- SOAP Config (local WSDL) -->
     <wsc:config name="Soap_Config"
-                wsdlLocation="wsdl/FlatProxyService.wsdl"
+                wsdlLocation="classpath:wsdl/FlatProxyService.wsdl"
                 service="FlatProxyService"
                 port="FlatProxyServicePort">
-
-        <wsc:connection endpoint="http://localhost:8080/app/FlatProxyService"/>
-
+        <wsc:connection endpoint="https://localhost:33611"/>
     </wsc:config>
 
-
-
-    <!-- ================================================= -->
-    <!-- FLOW 1                                            -->
-    <!-- ================================================= -->
-
+    <!-- FLOW 1: findWithBalcony -->
     <flow name="findWithBalconyFlow">
-
-        <http:listener config-ref="HTTP_Listener_config"
-                       path="/flats/agency/find-with-balcony/{priceType}/{balconyType}"
+        <http:listener config-ref="HTTPS_Listener_config"
+                       path="/api/v1/flats/agency/find-with-balcony/{priceType}/{balconyType}"
                        allowedMethods="GET"/>
 
         <set-variable variableName="priceType" value="#[attributes.uriParams.priceType]"/>
         <set-variable variableName="balconyType" value="#[attributes.uriParams.balconyType]"/>
-
 
         <wsc:consume config-ref="Soap_Config" operation="findWithBalcony">
             <wsc:message>
@@ -55,83 +47,69 @@
 output application/xml
 ---
 {
- findWithBalcony: {
-  priceType: vars.priceType,
-  balconyType: vars.balconyType
- }
+  findWithBalcony: {
+    priceType: vars.priceType,
+    balconyType: vars.balconyType
+  }
 }
 ]]>
                 </wsc:body>
             </wsc:message>
         </wsc:consume>
 
+        <!-- Extract ProxyResponseDto -->
+		<ee:transform doc:name="Extract ProxyResponseDto">
+		    <ee:message>
+		        <ee:set-payload><![CDATA[
+		%dw 2.0
+		output application/java
+		ns soap "http://schemas.xmlsoap.org/soap/envelope/"
+		---
+		{
+		    status: ((payload.soap#Body default {}) /*get first child*/ default {}).return.status as Number default 200,
+		    mediaType: ((payload.soap#Body default {}) default {}).return.mediaType as String default "application/xml",
+		    body: ((payload.soap#Body default {}) default {}).return.body as String default ""
+		}
+		]]></ee:set-payload>
+		    </ee:message>
+		</ee:transform>
 
-        <!-- extract ProxyResponseDto -->
-        <ee:transform>
+        <!-- Build REST response -->
+        <ee:transform doc:name="Build REST Response">
             <ee:message>
-                <ee:set-payload>
-<![CDATA[
-%dw 2.0
-output application/java
----
-{
- status: payload.Body.return.status as Number,
- mediaType: payload.Body.return.mediaType as String,
- body: payload.Body.return.body as String
-}
-]]>
-                </ee:set-payload>
-            </ee:message>
-        </ee:transform>
-
-
-        <!-- build REST response -->
-        <ee:transform>
-            <ee:message>
-
-                <ee:set-payload>
-<![CDATA[
+                <ee:set-payload><![CDATA[
 %dw 2.0
 output application/xml
 ---
-read(payload.body,"application/xml")
-]]>
-                </ee:set-payload>
+if (payload.body == "" or payload.body == null)
+  ""
+else
+  read(payload.body, "application/xml")
+]]></ee:set-payload>
 
-                <ee:set-attributes>
-<![CDATA[
+                <ee:set-attributes><![CDATA[
 %dw 2.0
 output application/java
 ---
 attributes ++ {
- statusCode: payload.status,
- headers: { "Content-Type": payload.mediaType }
+  statusCode: payload.status default 200,
+  headers: { "Content-Type": payload.mediaType default "application/xml" }
 }
-]]>
-                </ee:set-attributes>
-
+]]></ee:set-attributes>
             </ee:message>
         </ee:transform>
-
     </flow>
 
-
-
-    <!-- ================================================= -->
-    <!-- FLOW 2                                            -->
-    <!-- ================================================= -->
-
-    <flow name="orderedByMetroFlow">
-
-        <http:listener config-ref="HTTP_Listener_config"
-                       path="/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
+    <!-- FLOW 2: getOrderedByTimeToMetro -->
+    <flow name="getOrderedByTimeToMetroFlow">
+        <http:listener config-ref="HTTPS_Listener_config"
+                       path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
                        allowedMethods="GET"/>
 
         <set-variable variableName="transportType" value="#[attributes.uriParams.transportType]"/>
         <set-variable variableName="sortType" value="#[attributes.uriParams.sortType]"/>
-        <set-variable variableName="page" value="#[attributes.queryParams.page default 0]"/>
-        <set-variable variableName="size" value="#[attributes.queryParams.size default 10]"/>
-
+        <set-variable variableName="page" value="#[attributes.queryParams.page default null]"/>
+        <set-variable variableName="size" value="#[attributes.queryParams.size default null]"/>
 
         <wsc:consume config-ref="Soap_Config" operation="getOrderedByTimeToMetro">
             <wsc:message>
@@ -141,66 +119,59 @@ attributes ++ {
 output application/xml
 ---
 {
- getOrderedByTimeToMetro: {
-  transportType: vars.transportType,
-  sortType: vars.sortType,
-  page: vars.page,
-  size: vars.size
- }
+  getOrderedByTimeToMetro: {
+    transportType: vars.transportType,
+    sortType: vars.sortType,
+    page: vars.page,
+    size: vars.size
+  }
 }
 ]]>
                 </wsc:body>
             </wsc:message>
         </wsc:consume>
 
-
-        <ee:transform>
-            <ee:message>
-                <ee:set-payload>
-<![CDATA[
+        <!-- Extract ProxyResponseDto -->
+<ee:transform doc:name="Extract ProxyResponseDto">
+    <ee:message>
+        <ee:set-payload><![CDATA[
 %dw 2.0
 output application/java
+ns soap "http://schemas.xmlsoap.org/soap/envelope/"
 ---
 {
- status: payload.Body.return.status as Number,
- mediaType: payload.Body.return.mediaType as String,
- body: payload.Body.return.body as String
+    status: ((payload.soap#Body default {}) default {}).return.status as Number default 200,
+    mediaType: ((payload.soap#Body default {}) default {}).return.mediaType as String default "application/xml",
+    body: ((payload.soap#Body default {}) default {}).return.body as String default ""
 }
-]]>
-                </ee:set-payload>
-            </ee:message>
-        </ee:transform>
+]]></ee:set-payload>
+    </ee:message>
+</ee:transform>
 
-
-        <ee:transform>
+        <!-- Build REST response -->
+        <ee:transform doc:name="Build REST Response">
             <ee:message>
-
-                <ee:set-payload>
-<![CDATA[
+                <ee:set-payload><![CDATA[
 %dw 2.0
 output application/xml
 ---
-read(payload.body,"application/xml")
-]]>
-                </ee:set-payload>
+if (payload.body == "" or payload.body == null)
+  ""
+else
+  read(payload.body, "application/xml")
+]]></ee:set-payload>
 
-                <ee:set-attributes>
-<![CDATA[
+                <ee:set-attributes><![CDATA[
 %dw 2.0
 output application/java
 ---
 attributes ++ {
- statusCode: payload.status,
- headers: { "Content-Type": payload.mediaType }
+  statusCode: payload.status default 200,
+  headers: { "Content-Type": payload.mediaType default "application/xml" }
 }
-]]>
-                </ee:set-attributes>
-
+]]></ee:set-attributes>
             </ee:message>
         </ee:transform>
-
     </flow>
 
-
 </mule>
-
