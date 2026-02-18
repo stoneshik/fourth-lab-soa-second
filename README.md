@@ -32,6 +32,14 @@ keytool -genkeypair -alias wildfly -keyalg RSA -keysize 4096 \
 
 Просмотр сгенерированного wsdl: http://localhost:33612/FlatProxyService/FlatProxySoapBean?wsdl
 
+Генерация ключа для mule:
+```
+keytool -genkeypair -alias mule -keyalg RSA -keysize 4096 \
+  -validity 3650 -keystore mule.p12 \
+  -storetype PKCS12 -storepass changeit -keypass changeit \
+  -dname "CN=localhost, OU=Development, O=Company, L=City, ST=State, C=RU"
+```
+
 
 ### Ссылки на репозитории лабораторной
 
