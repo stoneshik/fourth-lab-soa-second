@@ -1,0 +1,119 @@
+<?xml version='1.0' encoding='UTF-8'?><wsdl:definitions xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:tns="http://soap.soa.lab/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:ns1="http://schemas.xmlsoap.org/soap/http" name="FlatProxyService" targetNamespace="http://soap.soa.lab/">
+  <wsdl:types>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://soap.soa.lab/" attributeFormDefault="unqualified" elementFormDefault="unqualified" targetNamespace="http://soap.soa.lab/" version="1.0">
+  <xs:element name="findWithBalcony" type="tns:findWithBalcony"/>
+  <xs:element name="findWithBalconyResponse" type="tns:findWithBalconyResponse"/>
+  <xs:element name="getOrderedByTimeToMetro" type="tns:getOrderedByTimeToMetro"/>
+  <xs:element name="getOrderedByTimeToMetroResponse" type="tns:getOrderedByTimeToMetroResponse"/>
+  <xs:element name="response" type="tns:proxyResponseDto"/>
+  <xs:complexType name="findWithBalcony">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="arg0" type="xs:string"/>
+      <xs:element minOccurs="0" name="arg1" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="findWithBalconyResponse">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="return" type="tns:proxyResponseDto"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="proxyResponseDto">
+    <xs:sequence>
+      <xs:element name="status" type="xs:int"/>
+      <xs:element minOccurs="0" name="mediaType" type="xs:string"/>
+      <xs:element minOccurs="0" name="body" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="SoapError">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="message" type="xs:string"/>
+      <xs:element minOccurs="0" name="time" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="getOrderedByTimeToMetro">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="arg0" type="xs:string"/>
+      <xs:element minOccurs="0" name="arg1" type="xs:string"/>
+      <xs:element minOccurs="0" name="arg2" type="xs:int"/>
+      <xs:element minOccurs="0" name="arg3" type="xs:int"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="getOrderedByTimeToMetroResponse">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="return" type="tns:proxyResponseDto"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ServiceFault" nillable="true" type="tns:SoapError"/>
+</xs:schema>
+  </wsdl:types>
+  <wsdl:message name="ServiceFaultException">
+    <wsdl:part element="tns:ServiceFault" name="ServiceFaultException">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="getOrderedByTimeToMetro">
+    <wsdl:part element="tns:getOrderedByTimeToMetro" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="getOrderedByTimeToMetroResponse">
+    <wsdl:part element="tns:getOrderedByTimeToMetroResponse" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="findWithBalconyResponse">
+    <wsdl:part element="tns:findWithBalconyResponse" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="findWithBalcony">
+    <wsdl:part element="tns:findWithBalcony" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:portType name="FlatProxySoap">
+    <wsdl:operation name="findWithBalcony">
+      <wsdl:input message="tns:findWithBalcony" name="findWithBalcony">
+    </wsdl:input>
+      <wsdl:output message="tns:findWithBalconyResponse" name="findWithBalconyResponse">
+    </wsdl:output>
+      <wsdl:fault message="tns:ServiceFaultException" name="ServiceFaultException">
+    </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="getOrderedByTimeToMetro">
+      <wsdl:input message="tns:getOrderedByTimeToMetro" name="getOrderedByTimeToMetro">
+    </wsdl:input>
+      <wsdl:output message="tns:getOrderedByTimeToMetroResponse" name="getOrderedByTimeToMetroResponse">
+    </wsdl:output>
+      <wsdl:fault message="tns:ServiceFaultException" name="ServiceFaultException">
+    </wsdl:fault>
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="FlatProxyServiceSoapBinding" type="tns:FlatProxySoap">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="findWithBalcony">
+      <soap:operation soapAction="" style="document"/>
+      <wsdl:input name="findWithBalcony">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="findWithBalconyResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+      <wsdl:fault name="ServiceFaultException">
+        <soap:fault name="ServiceFaultException" use="literal"/>
+      </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="getOrderedByTimeToMetro">
+      <soap:operation soapAction="" style="document"/>
+      <wsdl:input name="getOrderedByTimeToMetro">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="getOrderedByTimeToMetroResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+      <wsdl:fault name="ServiceFaultException">
+        <soap:fault name="ServiceFaultException" use="literal"/>
+      </wsdl:fault>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="FlatProxyService">
+    <wsdl:port binding="tns:FlatProxyServiceSoapBinding" name="FlatProxySoapBeanPort">
+      <soap:address location="http://localhost:33612/FlatProxyService/FlatProxySoapBean"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>
