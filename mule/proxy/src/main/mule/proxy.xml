@@ -13,37 +13,27 @@
         http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
 
     <!-- ========== TLS-контексты ========== -->
-    <!-- Для HTTPS-листенера (серверный) -->
     <tls:context name="TLS_Server">
         <tls:key-store type="pkcs12" path="classpath:mule.p12" keyPassword="changeit" password="changeit" />
     </tls:context>
 
-    <!-- Для вызова первого сервиса по HTTPS (клиентский) - доверять любому сертификату -->
     <tls:context name="TLS_Insecure_Client">
         <tls:trust-store insecure="true" />
     </tls:context>
 
     <!-- ========== КОНФИГУРАЦИИ СОЕДИНЕНИЙ ========== -->
-    <!-- Интеграционный flow (HTTP) -->
     <http:listener-config name="HTTP_Listener_Config">
         <http:listener-connection host="0.0.0.0" port="8082" />
     </http:listener-config>
 
-    <!-- REST-прослойка для клиента (HTTPS, порт 33610) -->
     <http:listener-config name="HTTPS_Listener_Config_REST">
-        <http:listener-connection host="0.0.0.0" port="33610" protocol="HTTPS">
-            <tls:context><tls:context-ref ref="TLS_Server" /></tls:context>
-        </http:listener-connection>
+        <http:listener-connection host="0.0.0.0" port="33610" protocol="HTTPS" tls:context-ref="TLS_Server" />
     </http:listener-config>
 
-    <!-- HTTP-клиент для вызова первого сервиса (HTTPS, localhost:33510) -->
     <http:request-config name="HTTP_Request_Config">
-        <http:request-connection host="localhost" port="33510" protocol="HTTPS">
-            <tls:context><tls:context-ref ref="TLS_Insecure_Client" /></tls:context>
-        </http:request-connection>
+        <http:request-connection host="localhost" port="33510" protocol="HTTPS" tls:context-ref="TLS_Insecure_Client" />
     </http:request-config>
 
-    <!-- SOAP-клиент через WSC с локальным WSDL -->
     <wsc:config name="Web_Service_Consumer">
         <wsc:connection wsdlLocation="classpath:wsdl/FlatProxyService.wsdl"
                         service="FlatProxyService"
@@ -70,101 +60,114 @@
         </http:request>
 
         <error-handler>
-            <on-error-continue type="HTTP:NOT_FOUND">
-                <set-payload value="#[{status: 404, body: 'Not Found'}]" />
-            </on-error-continue>
-            <on-error-continue type="ANY">
-                <set-payload value="#[{status: 500, body: 'Internal Server Error'}]" />
-            </on-error-continue>
-        </error-handler>
+		    <on-error-continue type="ANY">
+		        <!-- при ошибке WSC или любой другой: вернуть 500 и тело-ошибку -->
+		        <set-variable variableName="httpStatus" value="500" />
+		        <set-variable variableName="outboundHeaders" value="#[{ 'Content-Type' : 'application/xml' }]" />
+		        <set-payload value="&lt;error&gt;SOAP service error&lt;/error&gt;" />
+		    </on-error-continue>
+		</error-handler>
     </flow>
 
     <!-- ========== FLOW 2: REST-прослойка для клиента ========== -->
     <flow name="rest-to-soap-proxy">
-        <http:listener config-ref="HTTPS_Listener_Config_REST"
-                       path="api/v1/flats/agency/{method}/{param1}/{param2}"
-                       allowedMethods="GET" />
-        
-        <set-variable variableName="method" value="#[attributes.uriParams.method]" />
-        <set-variable variableName="param1" value="#[attributes.uriParams.param1]" />
-        <set-variable variableName="param2" value="#[attributes.uriParams.param2]" />
-        <set-variable variableName="page" value="#[attributes.queryParams.page[0]]" />
-        <set-variable variableName="size" value="#[attributes.queryParams.size[0]]" />
-
-        <choice>
-            <when expression="#[vars.method == 'find-with-balcony']">
-                <wsc:consume config-ref="Web_Service_Consumer"
-                             operation="findWithBalcony">
-                    <wsc:body>
-                        <![CDATA[
-                        %dw 2.0
-                        output application/xml
-                        ns ns0 http://soap.soa.lab/
-                        ---
-                        {
-                            ns0#findWithBalcony: {
-                                ns0#arg0: vars.param1,
-                                ns0#arg1: vars.param2
-                            }
-                        }
-                        ]]>
-                    </wsc:body>
-                </wsc:consume>
-            </when>
-            <when expression="#[vars.method == 'get-ordered-by-time-to-metro']">
-                <wsc:consume config-ref="Web_Service_Consumer"
-                             operation="getOrderedByTimeToMetro">
-                    <wsc:body>
-                        <![CDATA[
-                        %dw 2.0
-                        output application/xml
-                        ns ns0 http://soap.soa.lab/
-                        ---
-                        {
-                            ns0#getOrderedByTimeToMetro: {
-                                ns0#arg0: vars.param1,
-                                ns0#arg1: vars.param2,
-                                (ns0#arg2: vars.page) if (vars.page? != null),
-                                (ns0#arg3: vars.size) if (vars.size? != null)
-                            }
-                        }
-                        ]]>
-                    </wsc:body>
-                </wsc:consume>
-            </when>
-            <otherwise>
-                <raise-error type="HTTP:NOT_FOUND" description="Unknown method" />
-            </otherwise>
-        </choice>
-
-        <!-- Преобразуем SOAP-ответ (ProxyResponseDto) в HTTP-ответ -->
-        <ee:transform>
-            <ee:message>
-                <ee:set-payload>
-                    <![CDATA[
-                    %dw 2.0
-                    output application/java
-                    ---
-                    {
-                        status: payload.return.status,
-                        mediaType: payload.return.mediaType,
-                        body: payload.return.body
-                    }
-                    ]]>
-                </ee:set-payload>
-            </ee:message>
-        </ee:transform>
-
-        <set-property propertyName="http.status" value="#[payload.status]" />
-        <set-property propertyName="Content-Type" value="#[payload.mediaType]" />
-        <set-payload value="#[payload.body]" />
-
-        <error-handler>
-            <on-error-continue type="WSC:CONSUMER_FAILURE">
-                <set-property propertyName="http.status" value="500" />
-                <set-payload value="&lt;error&gt;SOAP service error&lt;/error&gt;" />
-            </on-error-continue>
-        </error-handler>
-    </flow>
+	    <http:listener config-ref="HTTPS_Listener_Config_REST"
+	                   path="api/v1/flats/agency/{method}/{param1}/{param2}"
+	                   allowedMethods="GET">
+	        <http:response statusCode="#[vars.httpStatus default 200]">
+	            <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+	        </http:response>
+	    </http:listener>
+	    
+	    <set-variable variableName="method" value="#[attributes.uriParams.method]" />
+	    <set-variable variableName="param1" value="#[attributes.uriParams.param1]" />
+	    <set-variable variableName="param2" value="#[attributes.uriParams.param2]" />
+	    <set-variable variableName="page" value="#[attributes.queryParams.page[0]]" />
+	    <set-variable variableName="size" value="#[attributes.queryParams.size[0]]" />
+	
+	    <choice>
+	        <when expression="#[vars.method == 'find-with-balcony']">
+	            <wsc:consume config-ref="Web_Service_Consumer"
+	                         operation="findWithBalcony">
+	                <wsc:message>
+	                    <wsc:body>
+	                        <![CDATA[
+	                        %dw 2.0
+	                        output application/xml
+	                        ns ns0 http://soap.soa.lab/
+	                        ---
+	                        {
+	                            ns0#findWithBalcony: {
+	                                ns0#arg0: vars.param1,
+	                                ns0#arg1: vars.param2
+	                            }
+	                        }
+	                        ]]>
+	                    </wsc:body>
+	                </wsc:message>
+	            </wsc:consume>
+	        </when>
+	        <when expression="#[vars.method == 'get-ordered-by-time-to-metro']">
+	            <wsc:consume config-ref="Web_Service_Consumer"
+	                         operation="getOrderedByTimeToMetro">
+	                <wsc:message>
+	                    <wsc:body>
+	                        <![CDATA[
+	                        %dw 2.0
+	                        output application/xml
+	                        ns ns0 http://soap.soa.lab/
+	                        ---
+	                        {
+	                            ns0#getOrderedByTimeToMetro: {
+	                                ns0#arg0: vars.param1,
+	                                ns0#arg1: vars.param2,
+	                                (ns0#arg2: vars.page) if (vars.page? != null),
+	                                (ns0#arg3: vars.size) if (vars.size? != null)
+	                            }
+	                        }
+	                        ]]>
+	                    </wsc:body>
+	                </wsc:message>
+	            </wsc:consume>
+	        </when>
+	        <otherwise>
+			    <set-variable variableName="httpStatus" value="404" />
+			    <set-variable variableName="outboundHeaders"
+			                  value="#[{ 'Content-Type' : 'application/xml' }]" />
+			    <set-payload value="&lt;error&gt;Unknown method&lt;/error&gt;" />
+			</otherwise>
+	    </choice>
+	
+	    <!-- Преобразуем SOAP-ответ (ProxyResponseDto) в промежуточный объект -->
+	    <ee:transform>
+	        <ee:message>
+	            <ee:set-payload>
+	                <![CDATA[
+	                %dw 2.0
+	                output application/java
+	                ---
+	                {
+	                    status: payload.return.status,
+	                    mediaType: payload.return.mediaType,
+	                    body: payload.return.body
+	                }
+	                ]]>
+	            </ee:set-payload>
+	        </ee:message>
+	    </ee:transform>
+	
+	    <!-- Вместо set-property — выставляем переменные, которые http:response подхватит -->
+	    <set-variable variableName="httpStatus" value="#[payload.status]" />
+	    <set-variable variableName="outboundHeaders" value="#[{ 'Content-Type' : payload.mediaType }]" />
+	    <set-payload value="#[payload.body]" />
+	
+	    <error-handler>
+		    <on-error-continue type="ANY">
+		        <set-variable variableName="httpStatus" value="500" />
+		        <set-variable variableName="outboundHeaders" value="#[{ 'Content-Type' : 'application/json' }]" />
+		        <set-payload value="#[{status: 500, body: 'Internal Server Error'}]" />
+		    </on-error-continue>
+		</error-handler>
+	</flow>
 
 </mule>
