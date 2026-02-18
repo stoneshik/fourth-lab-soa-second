@@ -5,10 +5,10 @@
       xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
       xsi:schemaLocation="
-        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
-        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
-        http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
-        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+		  http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/4.11/mule.xsd
+		  http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/4.11/mule-http.xsd
+		  http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/4.11/mule-wsc.xsd
+		  http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/4.11/mule-ee.xsd">
 
     <!-- ================================================= -->
     <!-- GLOBAL CONFIG                                     -->
