@@ -4,7 +4,9 @@
 !/wildfly/standalone/configuration/standalone-node2.xml
 **/target
 **.war
+**.jar
 **/.metadata
 **/.mule
 **/.tooling
 **/.tooling-apps-cache
+**/mule-enterprise-standalone**

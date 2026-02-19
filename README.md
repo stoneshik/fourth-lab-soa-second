@@ -61,6 +61,17 @@ keytool -import -alias wildfly -file wildfly.cer -keystore truststore.p12 -store
 keytool -import -alias spring -file spring.cer -keystore truststore.p12 -storetype PKCS12 -storepass changeit -noprompt
 ```
 
+Редактирование прав
+```
+sudo chown sus:sus proxy.jar
+chmod +x proxy.jar
+```
+
+Запуск mule:
+```
+./mule-enterprise-standalone/bin/mule console
+```
+
 ### Ссылки на репозитории лабораторной
 
 1. Ссылка на основной вызываемый сервис реализованный на Spring Boot - https://github.com/stoneshik/fourth-lab-soa
