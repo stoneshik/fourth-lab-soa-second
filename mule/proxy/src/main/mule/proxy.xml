@@ -30,8 +30,12 @@ http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/
     </http:listener-config>
 
     <http:request-config name="HTTP_FIRST_SERVICE">
-        <http:request-connection host="localhost" port="33510" protocol="HTTP"/>
-    </http:request-config>
+	    <http:request-connection host="localhost" port="33510" protocol="HTTPS">
+	        <tls:context>
+	            <tls:trust-store insecure="true"/>
+	        </tls:context>
+	    </http:request-connection>
+	</http:request-config>
 
     <wsc:config name="SOAP_SECOND_SERVICE">
 	    <wsc:connection
@@ -104,7 +108,7 @@ ns0#findWithBalcony: {
         <set-variable variableName="httpStatus" value="200"/>
         <set-variable variableName="headers" value="#[{
             'Content-Type':'application/xml',
-            'Access-Control-Allow-Origin':'http://localhost:33510',
+            'Access-Control-Allow-Origin':'https://localhost:33510',
             'Access-Control-Allow-Methods':'GET, OPTIONS',
             'Access-Control-Allow-Headers':'Content-Type, Accept',
             'Access-Control-Allow-Credentials':'true'
@@ -151,7 +155,7 @@ ns0#getOrderedByTimeToMetro: {
         <set-variable variableName="httpStatus" value="200"/>
         <set-variable variableName="headers" value="#[{
             'Content-Type':'application/xml',
-            'Access-Control-Allow-Origin':'http://localhost:33510',
+            'Access-Control-Allow-Origin':'https://localhost:33510',
             'Access-Control-Allow-Methods':'GET, OPTIONS',
             'Access-Control-Allow-Headers':'Content-Type, Accept',
             'Access-Control-Allow-Credentials':'true'
@@ -169,7 +173,7 @@ ns0#getOrderedByTimeToMetro: {
         <http:listener config-ref="HTTP_PUBLIC" path="/api/*" allowedMethods="OPTIONS">
             <http:response statusCode="200">
                 <http:headers>#[{
-                    'Access-Control-Allow-Origin':'http://localhost:33510',
+                    'Access-Control-Allow-Origin':'https://localhost:33510',
                     'Access-Control-Allow-Methods':'GET, OPTIONS',
                     'Access-Control-Allow-Headers':'Content-Type, Accept',
                     'Access-Control-Allow-Credentials':'true',
