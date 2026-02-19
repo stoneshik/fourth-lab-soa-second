@@ -13,6 +13,13 @@ http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/
         http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
 
     <!-- ================= CONFIGS ================= -->
+    <tls:context name="ServerTLSContext">
+	    <tls:key-store path="mule.p12"
+	                   keyPassword="changeit"
+	                   password="changeit"
+	                   type="PKCS12" />
+	</tls:context>
+
     <http:request-config name="HTTP_SOAP_INSECURE">
 	    <http:request-connection host="localhost" port="33611" protocol="HTTPS">
 	        <tls:context>
@@ -22,12 +29,12 @@ http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/
 	</http:request-config>
 
     <http:listener-config name="HTTP_PUBLIC">
-        <http:listener-connection host="0.0.0.0" port="33610"/>
-    </http:listener-config>
-
-    <http:listener-config name="HTTP_INTERNAL">
-        <http:listener-connection host="0.0.0.0" port="33620"/>
-    </http:listener-config>
+	    <http:listener-connection host="0.0.0.0" port="33610" protocol="HTTPS" tlsContext="ServerTLSContext"/>
+	</http:listener-config>
+	
+	<http:listener-config name="HTTP_INTERNAL">
+	    <http:listener-connection host="0.0.0.0" port="33620" protocol="HTTPS" tlsContext="ServerTLSContext"/>
+	</http:listener-config>
 
     <http:request-config name="HTTP_FIRST_SERVICE">
 	    <http:request-connection host="localhost" port="33510" protocol="HTTPS">
