@@ -40,6 +40,26 @@ keytool -genkeypair -alias mule -keyalg RSA -keysize 4096 \
   -dname "CN=localhost, OU=Development, O=Company, L=City, ST=State, C=RU"
 ```
 
+Создание trustore для mule
+1. Экспорт сертификата WildFly
+```
+keytool -export -alias wildfly -keystore wildfly.p12 -storetype PKCS12 -storepass changeit -file wildfly.cer
+```
+
+2. Экспорт сертификата Spring
+```
+keytool -export -alias spring -keystore spring.p12 -storetype PKCS12 -storepass changeit -file spring.cer
+```
+
+3. Создаём truststore.p12 и импортируем первый сертификат
+```
+keytool -import -alias wildfly -file wildfly.cer -keystore truststore.p12 -storetype PKCS12 -storepass changeit -noprompt
+```
+
+4. Импортируем второй сертификат
+```
+keytool -import -alias spring -file spring.cer -keystore truststore.p12 -storetype PKCS12 -storepass changeit -noprompt
+```
 
 ### Ссылки на репозитории лабораторной
 

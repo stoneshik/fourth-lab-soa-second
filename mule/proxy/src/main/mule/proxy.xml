@@ -19,29 +19,26 @@ http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/
 	                   password="changeit"
 	                   type="PKCS12" />
 	</tls:context>
-
-    <http:request-config name="HTTP_SOAP_INSECURE">
-	    <http:request-connection host="localhost" port="33611" protocol="HTTPS">
-	        <tls:context>
-	            <tls:trust-store insecure="true"/>
-	        </tls:context>
-	    </http:request-connection>
+	<tls:context name="ClientTLSContext">
+	    <tls:trust-store path="truststore.p12"
+	                     password="changeit"
+	                     type="PKCS12"/>
+	</tls:context>
+	
+	<http:request-config name="HTTP_SOAP">
+    	<http:request-connection host="localhost" port="33611" protocol="HTTPS" tlsContext="ClientTLSContext"/>
 	</http:request-config>
 
     <http:listener-config name="HTTP_PUBLIC">
 	    <http:listener-connection host="0.0.0.0" port="33610" protocol="HTTPS" tlsContext="ServerTLSContext"/>
 	</http:listener-config>
-	
+
 	<http:listener-config name="HTTP_INTERNAL">
 	    <http:listener-connection host="0.0.0.0" port="33620" protocol="HTTPS" tlsContext="ServerTLSContext"/>
 	</http:listener-config>
 
     <http:request-config name="HTTP_FIRST_SERVICE">
-	    <http:request-connection host="localhost" port="33510" protocol="HTTPS">
-	        <tls:context>
-	            <tls:trust-store insecure="true"/>
-	        </tls:context>
-	    </http:request-connection>
+	    <http:request-connection host="localhost" port="33510" protocol="HTTPS" tlsContext="ClientTLSContext"/>
 	</http:request-config>
 
     <wsc:config name="SOAP_SECOND_SERVICE">
@@ -52,7 +49,7 @@ http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/
 	        address="https://localhost:33611/FlatProxyService/FlatProxySoapBean">
 	        
 	        <wsc:custom-transport-configuration>
-	            <wsc:http-transport-configuration requesterConfig="HTTP_SOAP_INSECURE"/>
+	            <wsc:http-transport-configuration requesterConfig="HTTP_SOAP"/>
 	        </wsc:custom-transport-configuration>
 	    </wsc:connection>
 	</wsc:config>
