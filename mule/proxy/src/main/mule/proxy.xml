@@ -6,29 +6,28 @@
       xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
       xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
       xsi:schemaLocation="
-http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd 
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
         http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
         http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
         http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
         http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
 
-    <!-- ================= CONFIGS ================= -->
+    <!-- TLS Contexts -->
     <tls:context name="ServerTLSContext">
-	    <tls:key-store path="mule.p12"
-	                   keyPassword="changeit"
-	                   password="changeit"
-	                   type="PKCS12" />
+	    <tls:key-store
+            path="mule.p12"
+	        keyPassword="changeit"
+	        password="changeit"
+	        type="PKCS12" />
 	</tls:context>
 	<tls:context name="ClientTLSContext">
-	    <tls:trust-store path="truststore.p12"
-	                     password="changeit"
-	                     type="PKCS12"/>
+	    <tls:trust-store
+            path="truststore.p12"
+	        password="changeit"
+	        type="PKCS12"/>
 	</tls:context>
-	
-	<http:request-config name="HTTP_SOAP">
-    	<http:request-connection host="localhost" port="33611" protocol="HTTPS" tlsContext="ClientTLSContext"/>
-	</http:request-config>
 
+    <!-- Configs -->
     <http:listener-config name="HTTP_PUBLIC">
 	    <http:listener-connection host="0.0.0.0" port="33610" protocol="HTTPS" tlsContext="ServerTLSContext"/>
 	</http:listener-config>
@@ -41,6 +40,10 @@ http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/
 	    <http:request-connection host="localhost" port="33510" protocol="HTTPS" tlsContext="ClientTLSContext"/>
 	</http:request-config>
 
+    <http:request-config name="HTTP_SOAP_SECOND_SERVICE">
+    	<http:request-connection host="localhost" port="33611" protocol="HTTPS" tlsContext="ClientTLSContext"/>
+	</http:request-config>
+
     <wsc:config name="SOAP_SECOND_SERVICE">
 	    <wsc:connection
 	        wsdlLocation="wsdl/FlatProxyService.wsdl"
@@ -48,41 +51,36 @@ http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/
 	        port="FlatProxySoapBeanPort"
 	        address="https://localhost:33611/FlatProxyService/FlatProxySoapBean">
 	        <wsc:custom-transport-configuration>
-	            <wsc:http-transport-configuration requesterConfig="HTTP_SOAP"/>
+	            <wsc:http-transport-configuration requesterConfig="HTTP_SOAP_SECOND_SERVICE"/>
 	        </wsc:custom-transport-configuration>
 	    </wsc:connection>
 	</wsc:config>
 
-	<!-- ========================================================= -->
-	<!-- COMMON SOAP RESPONSE PARSER -->
-	<!-- ========================================================= -->
-	<sub-flow name="parse-soap-return">
+	<sub-flow name="parse-soap-response">
 	    <ee:transform>
 	        <ee:message>
-	            <ee:set-payload><![CDATA[
-	%dw 2.0
-	output application/xml
-	var body = if (message.payload != null) message.payload.body else {}
-	var firstResponse = (body pluck ((v,k) -> v))[0] default {}
-	var ret = if (firstResponse is Object) firstResponse.return else null
-	
-	fun parse(x) =
-	    if (x is String) read(x, "application/xml")
-	    else if (x is Object and x.body is String) read(x.body, "application/xml")
-	    else x
-	---
-	if (ret != null) parse(ret)
-	else { emptyResponse:{} }
-	]]></ee:set-payload>
+	            <ee:set-payload>
+<![CDATA[
+%dw 2.0
+output application/xml
+var body = if (message.payload != null) message.payload.body else {}
+var firstResponse = (body pluck ((v,k) -> v))[0] default {}
+var ret = if (firstResponse is Object) firstResponse.return else null
+fun parse(x) =
+    if (x is String) read(x, "application/xml")
+    else if (x is Object and x.body is String) read(x.body, "application/xml")
+    else x
+---
+if (ret != null) parse(ret)
+else { emptyResponse:{} }
+]]>
+                </ee:set-payload>
 	        </ee:message>
 	    </ee:transform>
 	    <logger level="INFO" message="Converted XML response: #[payload]" />
 	</sub-flow>
 
-    <!-- ========================================================= -->
-    <!-- PUBLIC API -->
-    <!-- ========================================================= -->
-
+    <!-- Public REST layer -->
     <flow name="public-find-with-balcony">
         <http:listener config-ref="HTTP_PUBLIC"
                        path="/api/v1/flats/agency/find-with-balcony/{priceType}/{balconyType}"
@@ -94,7 +92,8 @@ http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/
 
         <ee:transform>
             <ee:message>
-                <ee:set-payload><![CDATA[
+                <ee:set-payload>
+<![CDATA[
 %dw 2.0
 output application/xml
 ns ns0 http://soap.soa.lab/
@@ -103,7 +102,8 @@ ns0#findWithBalcony: {
     arg0: attributes.uriParams.priceType,
     arg1: attributes.uriParams.balconyType
 }
-]]></ee:set-payload>
+]]>
+                </ee:set-payload>
             </ee:message>
         </ee:transform>
 
@@ -118,14 +118,14 @@ ns0#findWithBalcony: {
             'Access-Control-Allow-Credentials':'true'
         }]"/>
 
-        <flow-ref name="parse-soap-return"/>
+        <flow-ref name="parse-soap-response"/>
     </flow>
 
-
     <flow name="public-get-ordered-by-time-to-metro">
-        <http:listener config-ref="HTTP_PUBLIC"
-                       path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
-                       allowedMethods="GET">
+        <http:listener
+            config-ref="HTTP_PUBLIC"
+            path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
+            allowedMethods="GET">
             <http:response statusCode="#[vars.httpStatus default 200]">
                 <http:headers>#[vars.headers default {}]</http:headers>
             </http:response>
@@ -133,13 +133,14 @@ ns0#findWithBalcony: {
 
         <ee:transform>
             <ee:message>
-                <ee:set-payload><![CDATA[
+                <ee:set-payload>
+<![CDATA[
 %dw 2.0
 output application/xml
 ns ns0 http://soap.soa.lab/
 
-var page = attributes.queryParams.page default null
-var size = attributes.queryParams.size default null
+var page = attributes.queryParams.page default 0
+var size = attributes.queryParams.size default 10
 
 ---
 ns0#getOrderedByTimeToMetro: {
@@ -150,7 +151,8 @@ ns0#getOrderedByTimeToMetro: {
 (if(page != null) {arg2: page as Number} else {})
 ++
 (if(size != null) {arg3: size as Number} else {})
-]]></ee:set-payload>
+]]>
+                </ee:set-payload>
             </ee:message>
         </ee:transform>
 
@@ -165,14 +167,10 @@ ns0#getOrderedByTimeToMetro: {
             'Access-Control-Allow-Credentials':'true'
         }]"/>
 
-        <flow-ref name="parse-soap-return"/>
+        <flow-ref name="parse-soap-response"/>
     </flow>
 
-
-    <!-- ========================================================= -->
-    <!-- CORS PREFLIGHT -->
-    <!-- ========================================================= -->
-
+    <!-- CORS -->
     <flow name="cors-options">
         <http:listener config-ref="HTTP_PUBLIC" path="/api/*" allowedMethods="OPTIONS">
             <http:response statusCode="200">
@@ -188,19 +186,17 @@ ns0#getOrderedByTimeToMetro: {
         <set-payload value=""/>
     </flow>
 
-
-    <!-- ========================================================= -->
-    <!-- INTERNAL PROXY -->
-    <!-- ========================================================= -->
-
+    <!-- Internal proxy -->
     <flow name="internal-find-with-balcony">
-        <http:listener config-ref="HTTP_INTERNAL"
-                       path="/api/v1/flats/agency/find-with-balcony/{priceType}/{balconyType}"
-                       allowedMethods="GET"/>
+        <http:listener
+            config-ref="HTTP_INTERNAL"
+            path="/api/v1/flats/agency/find-with-balcony/{priceType}/{balconyType}"
+            allowedMethods="GET"/>
 
-        <http:request config-ref="HTTP_FIRST_SERVICE"
-                      path="/api/v1/flats/agency/find-with-balcony/{priceType}/{balconyType}"
-                      method="GET">
+        <http:request
+            config-ref="HTTP_FIRST_SERVICE"
+            path="/api/v1/flats/agency/find-with-balcony/{priceType}/{balconyType}"
+            method="GET">
             <http:uri-params><![CDATA[#[{
                 priceType: attributes.uriParams.priceType,
                 balconyType: attributes.uriParams.balconyType
@@ -208,15 +204,16 @@ ns0#getOrderedByTimeToMetro: {
         </http:request>
     </flow>
 
-
     <flow name="internal-get-ordered-by-time-to-metro">
-        <http:listener config-ref="HTTP_INTERNAL"
-                       path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
-                       allowedMethods="GET"/>
+        <http:listener
+            config-ref="HTTP_INTERNAL"
+            path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
+            allowedMethods="GET"/>
 
-        <http:request config-ref="HTTP_FIRST_SERVICE"
-                      path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
-                      method="GET">
+        <http:request
+            config-ref="HTTP_FIRST_SERVICE"
+            path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
+            method="GET">
 
             <http:uri-params><![CDATA[#[{
                 transportType: attributes.uriParams.transportType,
@@ -227,8 +224,6 @@ ns0#getOrderedByTimeToMetro: {
                 page: attributes.queryParams.page default 0,
                 size: attributes.queryParams.size default 10
             }]]]></http:query-params>
-
         </http:request>
     </flow>
-
 </mule>
