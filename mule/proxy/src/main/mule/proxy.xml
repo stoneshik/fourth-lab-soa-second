@@ -47,7 +47,6 @@ http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/
 	        service="FlatProxyService"
 	        port="FlatProxySoapBeanPort"
 	        address="https://localhost:33611/FlatProxyService/FlatProxySoapBean">
-	        
 	        <wsc:custom-transport-configuration>
 	            <wsc:http-transport-configuration requesterConfig="HTTP_SOAP"/>
 	        </wsc:custom-transport-configuration>
@@ -77,6 +76,7 @@ http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/
 	]]></ee:set-payload>
 	        </ee:message>
 	    </ee:transform>
+	    <logger level="INFO" message="Converted XML response: #[payload]" />
 	</sub-flow>
 
     <!-- ========================================================= -->
