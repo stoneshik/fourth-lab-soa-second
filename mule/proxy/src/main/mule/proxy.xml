@@ -26,12 +26,12 @@
 
     <!-- SOAP SECOND SERVICE (WSDL via HTTP) -->
     <wsc:config name="SOAP_SECOND_SERVICE">
-	    <wsc:connection 
-		    wsdlLocation="wsdl/FlatProxyService.wsdl"
-		    service="FlatProxyService"
-		    port="FlatProxySoapBeanPort"
-		    address="http://localhost:33612/FlatProxyService/FlatProxySoapBean"/>
-	</wsc:config>
+        <wsc:connection
+            wsdlLocation="wsdl/FlatProxyService.wsdl"
+            service="FlatProxyService"
+            port="FlatProxySoapBeanPort"
+            address="http://localhost:33612/FlatProxyService/FlatProxySoapBean"/>
+    </wsc:config>
 
     <!-- ========================================================= -->
     <!-- PUBLIC API -->
@@ -39,7 +39,6 @@
 
     <!-- ===== find-with-balcony ===== -->
     <flow name="public-find-with-balcony">
-
         <http:listener config-ref="HTTP_PUBLIC"
                        path="/api/v1/flats/agency/find-with-balcony/{priceType}/{balconyType}"
                        allowedMethods="GET">
@@ -48,21 +47,20 @@
             </http:response>
         </http:listener>
 
-        <!-- Build SOAP body -->
         <ee:transform>
-		    <ee:message>
-		        <ee:set-payload><![CDATA[
-		%dw 2.0
-		output application/xml
-		ns ns0 http://soap.soa.lab/
-		---
-		ns0#findWithBalcony: {
-		    arg0: attributes.uriParams.priceType,
-		    arg1: attributes.uriParams.balconyType
-		}
-		]]></ee:set-payload>
-		    </ee:message>
-		</ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[
+%dw 2.0
+output application/xml
+ns ns0 http://soap.soa.lab/
+---
+ns0#findWithBalcony: {
+    arg0: attributes.uriParams.priceType,
+    arg1: attributes.uriParams.balconyType
+}
+]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
 
         <wsc:consume config-ref="SOAP_SECOND_SERVICE" operation="findWithBalcony"/>
 
@@ -77,19 +75,14 @@
 %dw 2.0
 output application/xml
 ---
-if (vars.resp.body != null and vars.resp.body != "")
-    read(vars.resp.body, "application/xml")
-else
-    {}
+vars.resp.body
 ]]></ee:set-payload>
             </ee:message>
         </ee:transform>
-
     </flow>
 
     <!-- ===== get-ordered-by-time-to-metro ===== -->
     <flow name="public-get-ordered-by-time-to-metro">
-
         <http:listener config-ref="HTTP_PUBLIC"
                        path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
                        allowedMethods="GET">
@@ -99,28 +92,25 @@ else
         </http:listener>
 
         <ee:transform>
-		    <ee:message>
-		        <ee:set-payload><![CDATA[
-		%dw 2.0
-		output application/xml
-		ns ns0 http://soap.soa.lab/
-		
-		var page = attributes.queryParams.page default null
-		var size = attributes.queryParams.size default null
-		
-		---
-		ns0#getOrderedByTimeToMetro:
-		    {
-		        arg0: attributes.uriParams.transportType,
-		        arg1: attributes.uriParams.sortType
-		    }
-		    ++
-		    (if (page != null) { arg2: page as Number } else {})
-		    ++
-		    (if (size != null) { arg3: size as Number } else {})
-		]]></ee:set-payload>
-		    </ee:message>
-		</ee:transform>
+            <ee:message>
+                <ee:set-payload><![CDATA[
+%dw 2.0
+output application/xml
+ns ns0 http://soap.soa.lab/
+
+var page = attributes.queryParams.page default null
+var size = attributes.queryParams.size default null
+
+---
+ns0#getOrderedByTimeToMetro: {
+    arg0: attributes.uriParams.transportType,
+    arg1: attributes.uriParams.sortType
+} ++
+(if (page != null) { arg2: page as Number } else {}) ++
+(if (size != null) { arg3: size as Number } else {})
+]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
 
         <wsc:consume config-ref="SOAP_SECOND_SERVICE" operation="getOrderedByTimeToMetro"/>
 
@@ -135,84 +125,59 @@ else
 %dw 2.0
 output application/xml
 ---
-if (vars.resp.body != null and vars.resp.body != "")
-    read(vars.resp.body, "application/xml")
-else
-    {}
+vars.resp.body
 ]]></ee:set-payload>
             </ee:message>
         </ee:transform>
-
     </flow>
 
     <!-- ========================================================= -->
-    <!-- INTERNAL PROXY (SOAP -> FIRST REST SERVICE) -->
+    <!-- INTERNAL PROXY (GET -> FIRST REST SERVICE) -->
     <!-- ========================================================= -->
 
     <flow name="internal-find-with-balcony">
-
         <http:listener config-ref="HTTP_INTERNAL"
-                       path="/internal/find-with-balcony"
-                       allowedMethods="POST"/>
+                       path="/api/v1/flats/agency/find-with-balcony/{priceType}/{balconyType}"
+                       allowedMethods="GET"/>
 
         <http:request config-ref="HTTP_FIRST_SERVICE"
-                      path="/api/v1/flats/agency/find-with-balcony"
-                      method="POST">
-            <http:body><![CDATA[#[payload]]]></http:body>
-            <http:headers><![CDATA[#[{'Content-Type':'application/xml'}]]]></http:headers>
+                      path="/api/v1/flats/agency/find-with-balcony/{priceType}/{balconyType}">
+            <http:uri-params><![CDATA[#[{
+    priceType: attributes.uriParams.priceType,
+    balconyType: attributes.uriParams.balconyType
+}]]]></http:uri-params>
         </http:request>
 
-        <ee:transform>
-            <ee:message>
-                <ee:set-payload><![CDATA[
-%dw 2.0
-output application/xml
-ns ns0 http://soap.soa.lab/
----
-ns0#findWithBalconyResponse: {
-    ns0#return: {
-        ns0#status: 200,
-        ns0#mediaType: "application/xml",
-        ns0#body: write(payload, "application/xml")
-    }
-}
-]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
-
+        <set-variable variableName="resp" value="#[payload]" />
+        <set-variable variableName="httpStatus" value="200" />
+        <set-variable variableName="headers" value="#[{ 'Content-Type': 'application/xml' }]" />
     </flow>
 
     <flow name="internal-get-ordered-by-time-to-metro">
-
         <http:listener config-ref="HTTP_INTERNAL"
-                       path="/internal/get-ordered-by-time-to-metro"
-                       allowedMethods="POST"/>
+                       path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
+                       allowedMethods="GET"/>
 
         <http:request config-ref="HTTP_FIRST_SERVICE"
-                      path="/api/v1/flats/agency/get-ordered-by-time-to-metro"
-                      method="POST">
-            <http:body><![CDATA[#[payload]]]></http:body>
-            <http:headers><![CDATA[#[{'Content-Type':'application/xml'}]]]></http:headers>
+                      path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
+                      method="GET">
+            <http:uri-params><![CDATA[
+{
+    transportType: attributes.uriParams.transportType,
+    sortType: attributes.uriParams.sortType
+}
+            ]]></http:uri-params>
+            <http:query-params><![CDATA[
+{
+    page: attributes.queryParams.page default null,
+    size: attributes.queryParams.size default null
+}
+            ]]></http:query-params>
         </http:request>
 
-        <ee:transform>
-            <ee:message>
-                <ee:set-payload><![CDATA[
-%dw 2.0
-output application/xml
-ns ns0 http://soap.soa.lab/
----
-ns0#getOrderedByTimeToMetroResponse: {
-    ns0#return: {
-        ns0#status: 200,
-        ns0#mediaType: "application/xml",
-        ns0#body: write(payload, "application/xml")
-    }
-}
-]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
-
+        <set-variable variableName="resp" value="#[payload]" />
+        <set-variable variableName="httpStatus" value="200" />
+        <set-variable variableName="headers" value="#[{ 'Content-Type': 'application/xml' }]" />
     </flow>
 
 </mule>
