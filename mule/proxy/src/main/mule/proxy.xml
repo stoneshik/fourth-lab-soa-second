@@ -47,6 +47,7 @@
             </http:response>
         </http:listener>
 
+        <!-- Build SOAP body -->
         <ee:transform>
             <ee:message>
                 <ee:set-payload><![CDATA[
@@ -69,13 +70,17 @@ ns0#findWithBalcony: {
         <set-variable variableName="headers"
                       value="#[{ 'Content-Type': (vars.resp.mediaType default 'application/xml') }]" />
 
+        <!-- Safe transform: return parsed body if present, otherwise emptyResponse -->
         <ee:transform>
             <ee:message>
                 <ee:set-payload><![CDATA[
 %dw 2.0
 output application/xml
 ---
-vars.resp.body
+if (vars.resp? and vars.resp.body != null and vars.resp.body != "")
+    read(vars.resp.body, "application/xml")
+else
+    { emptyResponse: {} }
 ]]></ee:set-payload>
             </ee:message>
         </ee:transform>
@@ -119,13 +124,17 @@ ns0#getOrderedByTimeToMetro: {
         <set-variable variableName="headers"
                       value="#[{ 'Content-Type': (vars.resp.mediaType default 'application/xml') }]" />
 
+        <!-- Safe transform: return parsed body if present, otherwise emptyResponse -->
         <ee:transform>
             <ee:message>
                 <ee:set-payload><![CDATA[
 %dw 2.0
 output application/xml
 ---
-vars.resp.body
+if (vars.resp? and vars.resp.body != null and vars.resp.body != "")
+    read(vars.resp.body, "application/xml")
+else
+    { emptyResponse: {} }
 ]]></ee:set-payload>
             </ee:message>
         </ee:transform>
@@ -141,11 +150,12 @@ vars.resp.body
                        allowedMethods="GET"/>
 
         <http:request config-ref="HTTP_FIRST_SERVICE"
-                      path="/api/v1/flats/agency/find-with-balcony/{priceType}/{balconyType}">
+                      path="/api/v1/flats/agency/find-with-balcony/{priceType}/{balconyType}"
+                      method="GET">
             <http:uri-params><![CDATA[#[{
-    priceType: attributes.uriParams.priceType,
-    balconyType: attributes.uriParams.balconyType
-}]]]></http:uri-params>
+                priceType: attributes.uriParams.priceType,
+                balconyType: attributes.uriParams.balconyType
+            }]]]></http:uri-params>
         </http:request>
 
         <set-variable variableName="resp" value="#[payload]" />
@@ -154,30 +164,27 @@ vars.resp.body
     </flow>
 
     <flow name="internal-get-ordered-by-time-to-metro">
-        <http:listener config-ref="HTTP_INTERNAL"
-                       path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
-                       allowedMethods="GET"/>
-
-        <http:request config-ref="HTTP_FIRST_SERVICE"
-                      path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
-                      method="GET">
-            <http:uri-params><![CDATA[
-{
-    transportType: attributes.uriParams.transportType,
-    sortType: attributes.uriParams.sortType
-}
-            ]]></http:uri-params>
-            <http:query-params><![CDATA[
-{
-    page: attributes.queryParams.page default null,
-    size: attributes.queryParams.size default null
-}
-            ]]></http:query-params>
-        </http:request>
-
-        <set-variable variableName="resp" value="#[payload]" />
-        <set-variable variableName="httpStatus" value="200" />
-        <set-variable variableName="headers" value="#[{ 'Content-Type': 'application/xml' }]" />
-    </flow>
+	    <http:listener config-ref="HTTP_INTERNAL"
+	                   path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
+	                   allowedMethods="GET"/>
+	
+	    <http:request config-ref="HTTP_FIRST_SERVICE"
+	                  path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
+	                  method="GET">
+	        <http:uri-params><![CDATA[#[{
+	            transportType: attributes.uriParams.transportType,
+	            sortType: attributes.uriParams.sortType
+	        }]]]></http:uri-params>
+	
+	        <http:query-params><![CDATA[#[{
+	            (if (attributes.queryParams.page != null) 'page' else 0): attributes.queryParams.page,
+	            (if (attributes.queryParams.size != null) 'size' else 10): attributes.queryParams.size
+	        }]]]></http:query-params>
+	    </http:request>
+	
+	    <set-variable variableName="resp" value="#[payload]" />
+	    <set-variable variableName="httpStatus" value="200" />
+	    <set-variable variableName="headers" value="#[{ 'Content-Type': 'application/xml' }]" />
+	</flow>
 
 </mule>
