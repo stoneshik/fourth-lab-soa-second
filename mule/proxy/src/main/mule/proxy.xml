@@ -37,7 +37,7 @@
     <!-- PUBLIC API -->
     <!-- ========================================================= -->
 
-    <!-- ===== find-with-balcony ===== -->
+    <!-- ===== find-with-balcony (GET) ===== -->
     <flow name="public-find-with-balcony">
         <http:listener config-ref="HTTP_PUBLIC"
                        path="/api/v1/flats/agency/find-with-balcony/{priceType}/{balconyType}"
@@ -70,6 +70,14 @@ ns0#findWithBalcony: {
         <set-variable variableName="headers"
                       value="#[{ 'Content-Type': (vars.resp.mediaType default 'application/xml') }]" />
 
+        <!-- Добавляем CORS-заголовки прямо здесь -->
+        <set-variable variableName="headers" value="#[vars.headers ++ {
+            'Access-Control-Allow-Origin': 'http://localhost:33510',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Accept',
+            'Access-Control-Allow-Credentials': 'true'
+        }]" />
+
         <!-- Safe transform: return parsed body if present, otherwise emptyResponse -->
         <ee:transform>
             <ee:message>
@@ -86,7 +94,7 @@ else
         </ee:transform>
     </flow>
 
-    <!-- ===== get-ordered-by-time-to-metro ===== -->
+    <!-- ===== get-ordered-by-time-to-metro (GET) ===== -->
     <flow name="public-get-ordered-by-time-to-metro">
         <http:listener config-ref="HTTP_PUBLIC"
                        path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
@@ -124,6 +132,14 @@ ns0#getOrderedByTimeToMetro: {
         <set-variable variableName="headers"
                       value="#[{ 'Content-Type': (vars.resp.mediaType default 'application/xml') }]" />
 
+        <!-- Добавляем CORS-заголовки прямо здесь -->
+        <set-variable variableName="headers" value="#[vars.headers ++ {
+            'Access-Control-Allow-Origin': 'http://localhost:33510',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Accept',
+            'Access-Control-Allow-Credentials': 'true'
+        }]" />
+
         <!-- Safe transform: return parsed body if present, otherwise emptyResponse -->
         <ee:transform>
             <ee:message>
@@ -140,8 +156,44 @@ else
         </ee:transform>
     </flow>
 
+    <!-- ===== OPTIONS для find-with-balcony (preflight) ===== -->
+    <flow name="public-options-find-with-balcony">
+        <http:listener config-ref="HTTP_PUBLIC"
+                       path="/api/v1/flats/agency/find-with-balcony/{priceType}/{balconyType}"
+                       allowedMethods="OPTIONS">
+            <http:response statusCode="200">
+                <http:headers>#[{
+                    'Access-Control-Allow-Origin': 'http://localhost:33510',
+                    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Accept',
+                    'Access-Control-Allow-Credentials': 'true',
+                    'Access-Control-Max-Age': '86400'
+                }]</http:headers>
+            </http:response>
+        </http:listener>
+        <set-payload value=""/>
+    </flow>
+
+    <!-- ===== OPTIONS для get-ordered-by-time-to-metro (preflight) ===== -->
+    <flow name="public-options-get-ordered-by-time-to-metro">
+        <http:listener config-ref="HTTP_PUBLIC"
+                       path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
+                       allowedMethods="OPTIONS">
+            <http:response statusCode="200">
+                <http:headers>#[{
+                    'Access-Control-Allow-Origin': 'http://localhost:33510',
+                    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Accept',
+                    'Access-Control-Allow-Credentials': 'true',
+                    'Access-Control-Max-Age': '86400'
+                }]</http:headers>
+            </http:response>
+        </http:listener>
+        <set-payload value=""/>
+    </flow>
+
     <!-- ========================================================= -->
-    <!-- INTERNAL PROXY (GET -> FIRST REST SERVICE) -->
+    <!-- INTERNAL PROXY (GET -> FIRST REST SERVICE)               -->
     <!-- ========================================================= -->
 
     <flow name="internal-find-with-balcony">
@@ -164,27 +216,27 @@ else
     </flow>
 
     <flow name="internal-get-ordered-by-time-to-metro">
-	    <http:listener config-ref="HTTP_INTERNAL"
-	                   path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
-	                   allowedMethods="GET"/>
-	
-	    <http:request config-ref="HTTP_FIRST_SERVICE"
-	                  path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
-	                  method="GET">
-	        <http:uri-params><![CDATA[#[{
-	            transportType: attributes.uriParams.transportType,
-	            sortType: attributes.uriParams.sortType
-	        }]]]></http:uri-params>
-	
-	        <http:query-params><![CDATA[#[{
-	            (if (attributes.queryParams.page != null) 'page' else 0): attributes.queryParams.page,
-	            (if (attributes.queryParams.size != null) 'size' else 10): attributes.queryParams.size
-	        }]]]></http:query-params>
-	    </http:request>
-	
-	    <set-variable variableName="resp" value="#[payload]" />
-	    <set-variable variableName="httpStatus" value="200" />
-	    <set-variable variableName="headers" value="#[{ 'Content-Type': 'application/xml' }]" />
-	</flow>
+        <http:listener config-ref="HTTP_INTERNAL"
+                       path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
+                       allowedMethods="GET"/>
+
+        <http:request config-ref="HTTP_FIRST_SERVICE"
+                      path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
+                      method="GET">
+            <http:uri-params><![CDATA[#[{
+                transportType: attributes.uriParams.transportType,
+                sortType: attributes.uriParams.sortType
+            }]]]></http:uri-params>
+
+            <http:query-params><![CDATA[#[{
+                (if (attributes.queryParams.page != null) 'page' else 0): attributes.queryParams.page,
+                (if (attributes.queryParams.size != null) 'size' else 10): attributes.queryParams.size
+            }]]]></http:query-params>
+        </http:request>
+
+        <set-variable variableName="resp" value="#[payload]" />
+        <set-variable variableName="httpStatus" value="200" />
+        <set-variable variableName="headers" value="#[{ 'Content-Type': 'application/xml' }]" />
+    </flow>
 
 </mule>
