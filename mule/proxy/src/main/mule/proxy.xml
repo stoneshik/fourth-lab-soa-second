@@ -24,7 +24,6 @@
         <http:request-connection host="localhost" port="33510" protocol="HTTP"/>
     </http:request-config>
 
-    <!-- SOAP SECOND SERVICE (WSDL via HTTP) -->
     <wsc:config name="SOAP_SECOND_SERVICE">
         <wsc:connection
             wsdlLocation="wsdl/FlatProxyService.wsdl"
@@ -33,11 +32,37 @@
             address="http://localhost:33612/FlatProxyService/FlatProxySoapBean"/>
     </wsc:config>
 
+
+	<!-- ========================================================= -->
+	<!-- COMMON SOAP RESPONSE PARSER -->
+	<!-- ========================================================= -->
+	<sub-flow name="parse-soap-return">
+	    <ee:transform>
+	        <ee:message>
+	            <ee:set-payload><![CDATA[
+	%dw 2.0
+	output application/xml
+	var body = payload.body default {}
+	var resp = ((body pluck ((v,k) -> v)) default [])[0] default {}
+	var ret = resp.return default null
+	
+	fun parse(x) =
+	    if (x is String) read(x, "application/xml")
+	    else if (x is Object and x.body is String) read(x.body, "application/xml")
+	    else x
+	---
+	if (ret != null) parse(ret)
+	else { emptyResponse:{} }
+	]]></ee:set-payload>
+	        </ee:message>
+	    </ee:transform>
+	</sub-flow>
+	
+
     <!-- ========================================================= -->
     <!-- PUBLIC API -->
     <!-- ========================================================= -->
 
-    <!-- ===== find-with-balcony (GET) ===== -->
     <flow name="public-find-with-balcony">
         <http:listener config-ref="HTTP_PUBLIC"
                        path="/api/v1/flats/agency/find-with-balcony/{priceType}/{balconyType}"
@@ -47,7 +72,6 @@
             </http:response>
         </http:listener>
 
-        <!-- Build SOAP body -->
         <ee:transform>
             <ee:message>
                 <ee:set-payload><![CDATA[
@@ -65,36 +89,19 @@ ns0#findWithBalcony: {
 
         <wsc:consume config-ref="SOAP_SECOND_SERVICE" operation="findWithBalcony"/>
 
-        <set-variable variableName="resp" value="#[payload.return]" />
-        <set-variable variableName="httpStatus" value="#[(vars.resp.status default 200) as Number]" />
-        <set-variable variableName="headers"
-                      value="#[{ 'Content-Type': (vars.resp.mediaType default 'application/xml') }]" />
+        <set-variable variableName="httpStatus" value="200"/>
+        <set-variable variableName="headers" value="#[{
+            'Content-Type':'application/xml',
+            'Access-Control-Allow-Origin':'http://localhost:33510',
+            'Access-Control-Allow-Methods':'GET, OPTIONS',
+            'Access-Control-Allow-Headers':'Content-Type, Accept',
+            'Access-Control-Allow-Credentials':'true'
+        }]"/>
 
-        <!-- Добавляем CORS-заголовки прямо здесь -->
-        <set-variable variableName="headers" value="#[vars.headers ++ {
-            'Access-Control-Allow-Origin': 'http://localhost:33510',
-            'Access-Control-Allow-Methods': 'GET, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Accept',
-            'Access-Control-Allow-Credentials': 'true'
-        }]" />
-
-        <!-- Safe transform: return parsed body if present, otherwise emptyResponse -->
-        <ee:transform>
-            <ee:message>
-                <ee:set-payload><![CDATA[
-%dw 2.0
-output application/xml
----
-if (vars.resp? and vars.resp.body != null and vars.resp.body != "")
-    read(vars.resp.body, "application/xml")
-else
-    { emptyResponse: {} }
-]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
+        <flow-ref name="parse-soap-return"/>
     </flow>
 
-    <!-- ===== get-ordered-by-time-to-metro (GET) ===== -->
+
     <flow name="public-get-ordered-by-time-to-metro">
         <http:listener config-ref="HTTP_PUBLIC"
                        path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
@@ -118,82 +125,52 @@ var size = attributes.queryParams.size default null
 ns0#getOrderedByTimeToMetro: {
     arg0: attributes.uriParams.transportType,
     arg1: attributes.uriParams.sortType
-} ++
-(if (page != null) { arg2: page as Number } else {}) ++
-(if (size != null) { arg3: size as Number } else {})
+}
+++
+(if(page != null) {arg2: page as Number} else {})
+++
+(if(size != null) {arg3: size as Number} else {})
 ]]></ee:set-payload>
             </ee:message>
         </ee:transform>
 
         <wsc:consume config-ref="SOAP_SECOND_SERVICE" operation="getOrderedByTimeToMetro"/>
 
-        <set-variable variableName="resp" value="#[payload.return]" />
-        <set-variable variableName="httpStatus" value="#[(vars.resp.status default 200) as Number]" />
-        <set-variable variableName="headers"
-                      value="#[{ 'Content-Type': (vars.resp.mediaType default 'application/xml') }]" />
+        <set-variable variableName="httpStatus" value="200"/>
+        <set-variable variableName="headers" value="#[{
+            'Content-Type':'application/xml',
+            'Access-Control-Allow-Origin':'http://localhost:33510',
+            'Access-Control-Allow-Methods':'GET, OPTIONS',
+            'Access-Control-Allow-Headers':'Content-Type, Accept',
+            'Access-Control-Allow-Credentials':'true'
+        }]"/>
 
-        <!-- Добавляем CORS-заголовки прямо здесь -->
-        <set-variable variableName="headers" value="#[vars.headers ++ {
-            'Access-Control-Allow-Origin': 'http://localhost:33510',
-            'Access-Control-Allow-Methods': 'GET, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Accept',
-            'Access-Control-Allow-Credentials': 'true'
-        }]" />
-
-        <!-- Safe transform: return parsed body if present, otherwise emptyResponse -->
-        <ee:transform>
-            <ee:message>
-                <ee:set-payload><![CDATA[
-%dw 2.0
-output application/xml
----
-if (vars.resp? and vars.resp.body != null and vars.resp.body != "")
-    read(vars.resp.body, "application/xml")
-else
-    { emptyResponse: {} }
-]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
+        <flow-ref name="parse-soap-return"/>
     </flow>
 
-    <!-- ===== OPTIONS для find-with-balcony (preflight) ===== -->
-    <flow name="public-options-find-with-balcony">
-        <http:listener config-ref="HTTP_PUBLIC"
-                       path="/api/v1/flats/agency/find-with-balcony/{priceType}/{balconyType}"
-                       allowedMethods="OPTIONS">
-            <http:response statusCode="200">
-                <http:headers>#[{
-                    'Access-Control-Allow-Origin': 'http://localhost:33510',
-                    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-                    'Access-Control-Allow-Headers': 'Content-Type, Accept',
-                    'Access-Control-Allow-Credentials': 'true',
-                    'Access-Control-Max-Age': '86400'
-                }]</http:headers>
-            </http:response>
-        </http:listener>
-        <set-payload value=""/>
-    </flow>
-
-    <!-- ===== OPTIONS для get-ordered-by-time-to-metro (preflight) ===== -->
-    <flow name="public-options-get-ordered-by-time-to-metro">
-        <http:listener config-ref="HTTP_PUBLIC"
-                       path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
-                       allowedMethods="OPTIONS">
-            <http:response statusCode="200">
-                <http:headers>#[{
-                    'Access-Control-Allow-Origin': 'http://localhost:33510',
-                    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-                    'Access-Control-Allow-Headers': 'Content-Type, Accept',
-                    'Access-Control-Allow-Credentials': 'true',
-                    'Access-Control-Max-Age': '86400'
-                }]</http:headers>
-            </http:response>
-        </http:listener>
-        <set-payload value=""/>
-    </flow>
 
     <!-- ========================================================= -->
-    <!-- INTERNAL PROXY (GET -> FIRST REST SERVICE)               -->
+    <!-- CORS PREFLIGHT -->
+    <!-- ========================================================= -->
+
+    <flow name="cors-options">
+        <http:listener config-ref="HTTP_PUBLIC" path="/api/*" allowedMethods="OPTIONS">
+            <http:response statusCode="200">
+                <http:headers>#[{
+                    'Access-Control-Allow-Origin':'http://localhost:33510',
+                    'Access-Control-Allow-Methods':'GET, OPTIONS',
+                    'Access-Control-Allow-Headers':'Content-Type, Accept',
+                    'Access-Control-Allow-Credentials':'true',
+                    'Access-Control-Max-Age':'86400'
+                }]</http:headers>
+            </http:response>
+        </http:listener>
+        <set-payload value=""/>
+    </flow>
+
+
+    <!-- ========================================================= -->
+    <!-- INTERNAL PROXY -->
     <!-- ========================================================= -->
 
     <flow name="internal-find-with-balcony">
@@ -209,11 +186,8 @@ else
                 balconyType: attributes.uriParams.balconyType
             }]]]></http:uri-params>
         </http:request>
-
-        <set-variable variableName="resp" value="#[payload]" />
-        <set-variable variableName="httpStatus" value="200" />
-        <set-variable variableName="headers" value="#[{ 'Content-Type': 'application/xml' }]" />
     </flow>
+
 
     <flow name="internal-get-ordered-by-time-to-metro">
         <http:listener config-ref="HTTP_INTERNAL"
@@ -223,20 +197,18 @@ else
         <http:request config-ref="HTTP_FIRST_SERVICE"
                       path="/api/v1/flats/agency/get-ordered-by-time-to-metro/{transportType}/{sortType}"
                       method="GET">
+
             <http:uri-params><![CDATA[#[{
                 transportType: attributes.uriParams.transportType,
                 sortType: attributes.uriParams.sortType
             }]]]></http:uri-params>
 
             <http:query-params><![CDATA[#[{
-                (if (attributes.queryParams.page != null) 'page' else 0): attributes.queryParams.page,
-                (if (attributes.queryParams.size != null) 'size' else 10): attributes.queryParams.size
+                page: attributes.queryParams.page default 0,
+                size: attributes.queryParams.size default 10
             }]]]></http:query-params>
-        </http:request>
 
-        <set-variable variableName="resp" value="#[payload]" />
-        <set-variable variableName="httpStatus" value="200" />
-        <set-variable variableName="headers" value="#[{ 'Content-Type': 'application/xml' }]" />
+        </http:request>
     </flow>
 
 </mule>
