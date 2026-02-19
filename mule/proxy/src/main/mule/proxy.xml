@@ -50,19 +50,19 @@
 
         <!-- Build SOAP body -->
         <ee:transform>
-            <ee:message>
-                <ee:set-payload><![CDATA[
-%dw 2.0
-output application/xml
-ns ns0 http://soap.soa.lab/
----
-ns0#findWithBalcony: {
-    ns0#arg0: attributes.uriParams.priceType,
-    ns0#arg1: attributes.uriParams.balconyType
-}
-]]></ee:set-payload>
-            </ee:message>
-        </ee:transform>
+		    <ee:message>
+		        <ee:set-payload><![CDATA[
+		%dw 2.0
+		output application/xml
+		ns ns0 http://soap.soa.lab/
+		---
+		ns0#findWithBalcony: {
+		    arg0: attributes.uriParams.priceType,
+		    arg1: attributes.uriParams.balconyType
+		}
+		]]></ee:set-payload>
+		    </ee:message>
+		</ee:transform>
 
         <wsc:consume config-ref="SOAP_SECOND_SERVICE" operation="findWithBalcony"/>
 
@@ -111,13 +111,13 @@ else
 		---
 		ns0#getOrderedByTimeToMetro:
 		    {
-		        ns0#arg0: attributes.uriParams.transportType,
-		        ns0#arg1: attributes.uriParams.sortType
+		        arg0: attributes.uriParams.transportType,
+		        arg1: attributes.uriParams.sortType
 		    }
 		    ++
-		    (if (page != null) { ns0#arg2: page as Number } else {})
+		    (if (page != null) { arg2: page as Number } else {})
 		    ++
-		    (if (size != null) { ns0#arg3: size as Number } else {})
+		    (if (size != null) { arg3: size as Number } else {})
 		]]></ee:set-payload>
 		    </ee:message>
 		</ee:transform>
