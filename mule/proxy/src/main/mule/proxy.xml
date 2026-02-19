@@ -42,9 +42,9 @@
 	            <ee:set-payload><![CDATA[
 	%dw 2.0
 	output application/xml
-	var body = payload.body default {}
-	var resp = ((body pluck ((v,k) -> v)) default [])[0] default {}
-	var ret = resp.return default null
+	var body = if (message.payload != null) message.payload.body else {}
+	var firstResponse = (body pluck ((v,k) -> v))[0] default {}
+	var ret = if (firstResponse is Object) firstResponse.return else null
 	
 	fun parse(x) =
 	    if (x is String) read(x, "application/xml")
@@ -57,7 +57,6 @@
 	        </ee:message>
 	    </ee:transform>
 	</sub-flow>
-	
 
     <!-- ========================================================= -->
     <!-- PUBLIC API -->
