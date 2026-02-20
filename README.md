@@ -72,6 +72,16 @@ chmod +x proxy.jar
 ./mule-enterprise-standalone/bin/mule console
 ```
 
+Перед запуском mule на helios увеличиваем metaspace jvm
+```
+export _JAVA_OPTIONS="-Xmx512m -XX:MaxMetaspaceSize=256m"
+```
+
+Просмотр логгов запущенного сервиса
+```
+tail -n 100 -f mule-enterprise-standalone/logs/proxy.log
+```
+
 ### Ссылки на репозитории лабораторной
 
 1. Ссылка на основной вызываемый сервис реализованный на Spring Boot - https://github.com/stoneshik/fourth-lab-soa
