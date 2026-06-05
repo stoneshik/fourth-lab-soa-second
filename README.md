@@ -82,6 +82,8 @@ export _JAVA_OPTIONS="-Xmx512m -XX:MaxMetaspaceSize=256m"
 tail -n 100 -f mule-enterprise-standalone/logs/proxy.log
 ```
 
+---
+
 ### Ссылки на репозитории лабораторной
 
 1. Ссылка на основной вызываемый сервис реализованный на Spring Boot - https://github.com/stoneshik/fourth-lab-soa
